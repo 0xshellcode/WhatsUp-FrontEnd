@@ -1,0 +1,26 @@
+{
+  "name": "WhatsUp-FontEnd",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "start": "node dist/index.js",
+    "dev": "tsc-watch --onSuccess \"node dist/index.js\" ",
+    "build": "tsc"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "encrypt-rsa": "^1.1.0",
+    "inquirer": "^8.2.0",
+    "prompt-sync": "^4.2.0",
+    "socket.io-client": "^4.4.0"
+  },
+  "devDependencies": {
+    "@types/inquirer": "^8.1.3",
+    "dotenv": "^10.0.0",
+    "tsc-watch": "^4.5.0",
+    "typescript": "^4.5.2"
+  }
+}
