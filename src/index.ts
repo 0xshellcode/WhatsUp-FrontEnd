@@ -3,14 +3,50 @@ import { io } from 'socket.io-client';
 const prompt = require('prompt-sync')();
 const socket = io('http://localhost:3000');
 const repl = require('repl');
+import NodeRSA from 'encrypt-rsa';
+import path from 'path';
+const fs = require('fs');
 
-/* enum Commands {
+const sharedKey: any = [];
+
+enum Commands {
   JoinRoom = 'Join To Room',
   Quit = 'Quit',
 }
 
+const generateRSAKeys = (username: any) => {
+  const nodeRSA = new NodeRSA();
+  const { privateKey, publicKey } = nodeRSA.createPrivateAndPublicKeys();
+
+  // Save the keys locally
+  fs.writeFileSync(`./__rsa-keys__/private-key-${username}`, privateKey);
+  fs.writeFileSync(`./__rsa-keys__/public-key-${username}`, publicKey);
+
+  return publicKey;
+};
+
+async function storePubKeys(userPublicKey: any) {
+  socket.on('joinRoom:shareKeys', (key) => {
+    if (userPublicKey !== key) {
+      console.log(`Public Key has been stored: ${key}`);
+      sharedKey.push(key);
+    }
+  });
+}
+
+async function quit() {
+  console.log('Bye!');
+  process.exit();
+}
+
 async function welcome() {
-  socket.on('joinRoom:message', (message) => {
+  socket.on('joinRoom:welcome', (message) => {
+    console.log(message.text);
+  });
+}
+
+async function newUser() {
+  socket.on('joinRoom:newUser', (message) => {
     console.log(message.text);
   });
 }
@@ -22,23 +58,32 @@ async function receiveMessage() {
 }
 
 async function sendMessage() {
-  const message = prompt('> ');
-  socket.emit('chat:message', { message });
+  repl.start({
+    prompt: '',
+    eval: (message: any) => {
+      socket.emit('chat', { message });
+    },
+  });
 }
 
 async function joinRoom() {
   console.clear();
   const username = prompt('Username: ');
   const roomname = prompt('Room to join: ');
-  if (username !== '' && roomname !== '') {
-    socket.emit('joinRoom', { username, roomname });
+  const pubkey = generateRSAKeys(username);
+
+  if (username !== '' && roomname !== '' && pubkey !== '') {
+    socket.emit('joinRoom', { username, roomname, pubkey });
   } else {
     console.error('You should enter all the data');
   }
 
   welcome();
-  sendMessage();
+  newUser();
+  storePubKeys(pubkey);
   receiveMessage();
+  sendMessage();
+  console.log(sharedKey);
 }
 
 async function initCli() {
@@ -54,12 +99,15 @@ async function initCli() {
     case Commands.JoinRoom:
       joinRoom();
       break;
+    case Commands.Quit:
+      quit();
+      break;
   }
 }
 
-initCli(); */
+initCli();
 
-const username = prompt('Username: ');
+/* const username = prompt('Username: ');
 const roomname = prompt('Room to join: ');
 if (username !== '' && roomname !== '') {
   socket.emit('joinRoom', { username, roomname });
@@ -85,3 +133,4 @@ repl.start({
     socket.emit('chat', { message });
   },
 });
+ */
