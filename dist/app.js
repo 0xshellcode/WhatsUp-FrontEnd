@@ -11,23 +11,24 @@ const prompt = require('prompt-sync')();
 const socket = (0, socket_io_client_1.io)('http://localhost:3000');
 const sharedKey = [];
 const nodeRSA = new encrypt_rsa_1.default();
-/* const cleanKeys = (username: any): void => {
-  fs.unlink(`./__rsa-keys__/private-key-${username}`, (err) => {
-    if (err) {
-      console.log(err);
-    } else {
-      console.log('The private key has been deleted');
-    }
-  });
-
-  fs.unlink(`./__rsa-keys__/public-key-${username}`, (err) => {
-    if (err) {
-      console.log(err);
-    } else {
-      console.log('The public key has been deleted');
-    }
-  });
-}; */
+const cleanKeys = (username) => {
+    fs_1.default.unlink(`./__rsa-keys__/private-key-${username}`, (err) => {
+        if (err) {
+            console.log(err);
+        }
+        else {
+            console.log('The private key has been deleted');
+        }
+    });
+    fs_1.default.unlink(`./__rsa-keys__/public-key-${username}`, (err) => {
+        if (err) {
+            console.log(err);
+        }
+        else {
+            console.log('The public key has been deleted');
+        }
+    });
+};
 // RSA Stuff
 const generateRSAKeys = (username) => {
     const { privateKey, publicKey } = nodeRSA.createPrivateAndPublicKeys();
@@ -36,23 +37,22 @@ const generateRSAKeys = (username) => {
     fs_1.default.writeFileSync(`./__rsa-keys__/public-key-${username}`, publicKey);
     return publicKey;
 };
-const storePubKeys = (pubkey, username) => {
+const storePubKeys = (pubkey) => {
     socket.on('joinRoom:shareKeys', (keys) => {
         keys.forEach((key) => {
             console.log(key);
             let tmpKey = key.toString();
             if (tmpKey !== pubkey) {
                 sharedKey.push(key);
-                fs_1.default.writeFileSync(`./__rsa-keys__/sharedKeyFor-${username}`, key);
                 console.log(`Public Key has been stored: ${key}`);
             }
         });
     });
 };
-const encryptMessage = (message, username) => {
+const encryptMessage = (message, sharedKey) => {
     return nodeRSA.encryptStringWithRsaPublicKey({
         text: message,
-        keyPath: `./__rsa-keys__/sharedKeyFor-${username}`,
+        keyPath: sharedKey,
     });
 };
 // Chat Funtions
@@ -75,24 +75,27 @@ const sendMessage = () => {
     repl_1.default.start({
         prompt: '',
         eval: (message) => {
-            console.log(typeof message);
             socket.emit('chat', { message });
         },
     });
 };
 // Encrypt N Decrypt
-const sendEncryptedMessage = (username) => {
+const sendEncryptedMessage = (sharedKey) => {
     repl_1.default.start({
         prompt: '',
         eval: (message) => {
-            const encryptedMessage = encryptMessage(message, username);
-            console.log(encryptedMessage);
-            console.log(typeof encryptedMessage);
-            socket.emit('chat', { encryptedMessage });
+            console.log(typeof sharedKey);
+            const tmpKey = sharedKey.toString();
+            console.log(typeof tmpKey);
+            const finalMessage = encryptMessage(message, sharedKey);
+            socket.emit('chat', { finalMessage });
         },
     });
 };
-// Main Function
+process.on('SIGINT', (username) => {
+    console.log('Caught interrupt signal');
+    cleanKeys(username);
+});
 const joinRoom = () => {
     console.clear();
     const username = prompt('Username: ');
@@ -106,9 +109,9 @@ const joinRoom = () => {
     }
     welcome();
     newUser();
-    storePubKeys(pubkey, username);
+    storePubKeys(pubkey);
     receiveMessage();
-    sendMessage();
-    //sendEncryptedMessage(username);
+    // sendMessage();
+    sendEncryptedMessage(sharedKey);
 };
 joinRoom();
