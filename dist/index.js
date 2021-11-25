@@ -55,6 +55,12 @@ const encryptMessage = (message, username) => {
         keyPath: `./__rsa-keys__/sharedKeyFor-${username}`,
     });
 };
+const decryptMessage = (message, username) => {
+    return nodeRSA.decryptStringWithRsaPrivateKey({
+        text: message,
+        keyPath: `./__rsa-keys__/private-key-${username}`,
+    });
+};
 // Chat Funtions
 const welcome = () => {
     socket.on('joinRoom:welcome', (message) => {
@@ -75,7 +81,6 @@ const sendMessage = () => {
     repl_1.default.start({
         prompt: '',
         eval: (message) => {
-            console.log(typeof message);
             socket.emit('chat', { message });
         },
     });
@@ -85,11 +90,15 @@ const sendEncryptedMessage = (username) => {
     repl_1.default.start({
         prompt: '',
         eval: (message) => {
-            const encryptedMessage = encryptMessage(message, username);
-            console.log(encryptedMessage);
-            console.log(typeof encryptedMessage);
-            socket.emit('chat', { encryptedMessage });
+            message = encryptMessage(message, username);
+            socket.emit('chat', { message });
         },
+    });
+};
+const receiveDecryptedMessage = (username) => {
+    socket.on('chat:message', (message) => {
+        const decryptedMessage = decryptMessage(message.text.message, username);
+        console.log(`${message.username}: ${decryptedMessage} `);
     });
 };
 // Main Function
@@ -107,8 +116,9 @@ const joinRoom = () => {
     welcome();
     newUser();
     storePubKeys(pubkey, username);
-    receiveMessage();
-    sendMessage();
-    //sendEncryptedMessage(username);
+    //receiveMessage();
+    //sendMessage();
+    receiveDecryptedMessage(username);
+    sendEncryptedMessage(username);
 };
 joinRoom();
