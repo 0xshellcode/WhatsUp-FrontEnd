@@ -14,32 +14,57 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 const inquirer_1 = __importDefault(require("inquirer"));
 const socket_io_client_1 = require("socket.io-client");
+const repl_1 = __importDefault(require("repl"));
+const fs_1 = __importDefault(require("fs"));
+const encrypt_rsa_1 = __importDefault(require("encrypt-rsa"));
 const prompt = require('prompt-sync')();
 const socket = (0, socket_io_client_1.io)('http://localhost:3000');
-const repl = require('repl');
-const encrypt_rsa_1 = __importDefault(require("encrypt-rsa"));
-const fs = require('fs');
 const sharedKey = [];
 var Commands;
 (function (Commands) {
     Commands["JoinRoom"] = "Join To Room";
     Commands["Quit"] = "Quit";
 })(Commands || (Commands = {}));
+const cleanKeys = (username) => {
+    fs_1.default.unlink(`./__rsa-keys__/private-key-${username}`, (err) => {
+        if (err) {
+            console.log(err);
+        }
+        else {
+            console.log('The private key has been deleted');
+        }
+    });
+    fs_1.default.unlink(`./__rsa-keys__/public-key-${username}`, (err) => {
+        if (err) {
+            console.log(err);
+        }
+        else {
+            console.log('The public key has been deleted');
+        }
+    });
+};
+process.on('SIGINT', function () {
+    console.log('Caught interrupt signal');
+});
 const generateRSAKeys = (username) => {
     const nodeRSA = new encrypt_rsa_1.default();
     const { privateKey, publicKey } = nodeRSA.createPrivateAndPublicKeys();
     // Save the keys locally
-    fs.writeFileSync(`./__rsa-keys__/private-key-${username}`, privateKey);
-    fs.writeFileSync(`./__rsa-keys__/public-key-${username}`, publicKey);
+    fs_1.default.writeFileSync(`./__rsa-keys__/private-key-${username}`, privateKey);
+    fs_1.default.writeFileSync(`./__rsa-keys__/public-key-${username}`, publicKey);
     return publicKey;
 };
-function storePubKeys(userPublicKey) {
+function storePubKeys(pubkey) {
     return __awaiter(this, void 0, void 0, function* () {
-        socket.on('joinRoom:shareKeys', (key) => {
-            if (userPublicKey !== key) {
-                console.log(`Public Key has been stored: ${key}`);
-                sharedKey.push(key);
-            }
+        socket.on('joinRoom:shareKeys', (keys) => {
+            keys.forEach((key) => {
+                console.log(key);
+                let tmpKey = key.toString();
+                if (tmpKey !== pubkey) {
+                    sharedKey.push(key);
+                    console.log(`Public Key has been stored: ${key}`);
+                }
+            });
         });
     });
 }
@@ -72,7 +97,7 @@ function receiveMessage() {
 }
 function sendMessage() {
     return __awaiter(this, void 0, void 0, function* () {
-        repl.start({
+        repl_1.default.start({
             prompt: '',
             eval: (message) => {
                 socket.emit('chat', { message });
@@ -97,7 +122,6 @@ function joinRoom() {
         storePubKeys(pubkey);
         receiveMessage();
         sendMessage();
-        console.log(sharedKey);
     });
 }
 function initCli() {
@@ -120,7 +144,10 @@ function initCli() {
     });
 }
 initCli();
-/* const username = prompt('Username: ');
+/*
+
+
+const username = prompt('Username: ');
 const roomname = prompt('Room to join: ');
 if (username !== '' && roomname !== '') {
   socket.emit('joinRoom', { username, roomname });
@@ -139,6 +166,17 @@ socket.on('joinRoom:newUser', (message) => {
 socket.on('chat:message', (message) => {
   console.log(`${message.username}: ${message.text.message} `);
 });
+
+  socket.on('joinRoom:shareKeys', (keys) => {
+    keys.forEach((key: any) => {
+      console.log(key);
+      let tmpKey = key.toString();
+      if (tmpKey !== pubkey) {
+        sharedKey.push(key);
+        console.log(`Public Key has been stored: ${key}`);
+      }
+    });
+  });
 
 repl.start({
   prompt: '',
