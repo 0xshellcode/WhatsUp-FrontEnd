@@ -3,9 +3,9 @@ import repl from 'repl';
 import fs from 'fs';
 import NodeRSA from 'encrypt-rsa';
 const prompt = require('prompt-sync')();
-const socket = io('http://localhost:3000');
+// const socket = io('https://localhost:5001', { rejectUnauthorized: false });
 
-const sharedKey: any = [];
+const socket = io('https://137.184.110.108', { rejectUnauthorized: false });
 const nodeRSA = new NodeRSA();
 
 /* const cleanKeys = (username: any): void => {
@@ -42,10 +42,8 @@ const generateRSAKeys = (username: any) => {
 const storePubKeys = (pubkey: any, username: any) => {
   socket.on('joinRoom:shareKeys', (keys) => {
     keys.forEach((key: any) => {
-      console.log(key);
       let tmpKey = key.toString();
       if (tmpKey !== pubkey) {
-        sharedKey.push(key);
         fs.writeFileSync(`./__rsa-keys__/sharedKeyFor-${username}`, key);
         console.log(`Public Key has been stored: ${key}`);
       }
